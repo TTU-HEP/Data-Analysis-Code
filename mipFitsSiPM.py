@@ -177,7 +177,7 @@ def main():
         for entry in chBase:
             # Assuming FERS_Board1_energyHG is a branch in the tree
             hg1 = getattr(chBase, "FERS_Board1_energyHG")
-            if hg1[chan] < 1:
+            if hg1[chan] < 1000:
                 h.Fill(hg1[chan])
 
         fitSPEMIP(h, 1)
