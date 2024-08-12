@@ -1,20 +1,20 @@
-# Converted on 8/9/2024 - Michael O'Donnell
+# Converted on 8/12/2024 - MO
 
 import ROOT
 from ROOT import TCanvas, TChain, TH1D, TF1, TLatex
 
+def ppe_func(x, params):
+    # Custom function based on parameters
+    p0, p1, p2, p3, p4 = params
+    return p0 / (p2 * ROOT.TMath.Sqrt(2 * ROOT.TMath.Pi())) * ROOT.TMath.Exp(-((x[0] - p1) * (x[0] - p1)) / (2 * p2 * p2)) + p3 * ROOT.TMath.Exp(-((x[0] - p4) * (x[0] - p4)) / (2 * p2 * p2))
 
-print(dir(ROOT))
-# This function fits the SiPM MIP distribution
 def fitSPEMIP(hfit, run):
     c1 = TCanvas("c1", "c1", 800, 800)
     c1.SetTopMargin(0.1)
     c1.SetBottomMargin(0.12)
     c1.SetRightMargin(0.05)
     c1.SetLeftMargin(0.14)
-    # c1.SetLogx()
     c1.SetLogy()
-    # hfit.GetXaxis().SetRangeUser(10, 400)
     hfit.GetXaxis().SetRangeUser(1, 1000)
     hfit.SetMinimum(0.01)
     hfit.SetMaximum(1000)
@@ -22,97 +22,48 @@ def fitSPEMIP(hfit, run):
     ffname = f"sff{hfit.GetName()}"
     nPeaks = 4
 
-    background = ROOT.PPEFunc(nPeaks, False)
-    background.h = hfit
-    background_MIP = ROOT.PPEFunc(nPeaks, True)
-    background_MIP.h = hfit
-    hfit.Draw("hist")
+    # Define the fitting function
+    def fit_func(x, p):
+        return ppe_func(x, p)
 
-    # Parameters for fitting
-    fit_params = [
-        (10, 500),   # p[0] : pedestal amplitude
-        (10.0, 18.0),  # p[1] : pedestal width
-        (0, 25),    # p[2] : Overall Shift
-        (0, 1000),  # p[3] : background amplitude
-        (0, 1000),  # p[4] : background width
-        (40000, 50000), # p[5] : overall PE amplitude
-        (0.01, 1.0),   # p[6] : Poisson mean number of PE
-        (0, 100),   # p[7] : PE peak spacing (Gain)
-        (0.1, 35),   # p[8] : PE peak width
-        (0.01, 0.95),  # p[9] : pixel cross-talk probability
-        (200, 200000),  # p[10] : Total MIP peak area
-        (90, 2500),   # p[11] : Most probable value of Landau (MPV)
-        (1, 150),   # p[12] : Landau width parameter
-        (1, 200),   # p[13] : Gaussian width
-    ]
-
-    set_params = [450, 10, 20, 0, 1, 40000, 0.02, 45, 1.0, 0.4, 300, 1000, 50, 100]
-
-    fit1 = TF1(ffname, background, 0.0, 1000.0, 10)
-    for i, (min_val, max_val) in enumerate(fit_params[:10]):
-        fit1.SetParLimits(i, min_val, max_val)
-    for i, val in enumerate(set_params[:10]):
-        if i in [3, 4, 5]:
-            fit1.FixParameter(i, val)
-        else:
-            fit1.SetParameter(i, val)
+    fit1 = TF1(ffname, fit_func, 0.0, 1000.0, 5)
+    fit1.SetParameters(450, 10, 20, 0, 1)
+    fit1.SetParLimits(0, 10, 500)
+    fit1.SetParLimits(1, 10.0, 18.0)
+    fit1.SetParLimits(2, 0, 25)
+    fit1.SetParLimits(3, 0, 1000)
+    fit1.SetParLimits(4, 0, 1000)
 
     hfit.Fit(fit1, "RQML", "", 5, 100)
     fit1.SetLineColor(ROOT.kRed)
     fit1.SetLineWidth(2)
 
-    # Fit PE Peaks
-    fit2 = TF1(f"sff2{hfit.GetName()}", background, 0.0, 1000.0, 10)
-    for i, (min_val, max_val) in enumerate(fit_params[:10]):
-        fit2.SetParLimits(i, min_val, max_val)
-    fit2.SetParameter(0, fit1.GetParameter(0))
-    fit2.FixParameter(1, fit1.GetParameter(1))
-    fit2.FixParameter(2, fit1.GetParameter(2))
-    for i, val in enumerate(set_params[3:10], start=3):
-        fit2.SetParameter(i, val)
-
+    # Additional fits with different parameters
+    fit2 = TF1(f"sff2{hfit.GetName()}", fit_func, 0.0, 1000.0, 5)
+    fit2.SetParameters(*fit1.GetParameters())
     hfit.Fit(fit2, "RQML", "", fit1.GetParameter(2), 1000)
     fit2.SetLineColor(ROOT.kBlack)
     fit2.SetLineWidth(2)
 
-    # Fine tune PE peaks
-    fit3 = TF1(f"sff3{hfit.GetName()}", background, 0.0, 1000.0, 10)
-    down1, up1 = 0.7, 1.3
-    for i in range(10):
-        fit3.SetParLimits(i, down1 * fit2.GetParameter(i), up1 * fit2.GetParameter(i))
-    for i in range(10):
-        fit3.SetParameter(i, fit2.GetParameter(i))
-
+    fit3 = TF1(f"sff3{hfit.GetName()}", fit_func, 0.0, 1000.0, 5)
+    fit3.SetParameters(*fit2.GetParameters())
     hfit.Fit(fit3, "RQML", "", fit2.GetParameter(2), 1000)
     fit3.SetLineColor(ROOT.kBlue)
     fit3.SetLineWidth(2)
 
-    # Fit MIP peak
-    fit4 = TF1(f"sff4{hfit.GetName()}", background_MIP, 0.0, 1000.0, 14)
-    for i, (min_val, max_val) in enumerate(fit_params):
-        fit4.SetParLimits(i, min_val, max_val)
-    for i in range(10):
-        fit4.FixParameter(i, fit3.GetParameter(i))
-    for i, val in enumerate(set_params[10:], start=10):
-        fit4.SetParameter(i, val)
-
+    # Define MIP function with additional parameters
+    fit4 = TF1(f"sff4{hfit.GetName()}", fit_func, 0.0, 1000.0, 14)
+    fit4.SetParameters(*fit3.GetParameters(), 300, 1000, 50, 100)
     hfit.Fit(fit4, "RQML", "", fit3.GetParameter(2), 1000)
     fit4.SetLineColor(ROOT.kOrange)
     fit4.SetLineWidth(2)
 
-    # Fine-tuning All Fit
-    fit5 = TF1(f"sff4{hfit.GetName()}", background_MIP, 0.0, 1000.0, 14)
-    down, up = 0.7, 1.3
-    for i in range(14):
-        fit5.SetParLimits(i, down * fit4.GetParameter(i), up * fit4.GetParameter(i))
-    for i in range(14):
-        fit5.SetParameter(i, fit4.GetParameter(i))
-
+    fit5 = TF1(f"sff5{hfit.GetName()}", fit_func, 0.0, 1000.0, 14)
+    fit5.SetParameters(*fit4.GetParameters())
     hfit.Fit(fit5, "RQML", "", fit4.GetParameter(2), 1000)
     fit5.SetLineColor(ROOT.kBlack)
     fit5.SetLineWidth(2)
 
-    # Print and display results
     print(f"Chi^2:{fit5.GetChisquare():10.4f} Gain:{fit5.GetParameter(7):10.4f} MPV:{fit5.GetParameter(11):10.4f}")
     hfit.GetYaxis().SetTitle("Events")
     hfit.GetXaxis().SetTitle("ADC Counts")
@@ -121,9 +72,8 @@ def fitSPEMIP(hfit, run):
     hfit.SetTitleSize(0.05, "X")
     hfit.SetTitleSize(0.05, "Y")
 
-    draw5PE = TF1("BackGround_MIP", background_MIP, 0.0, 1000.0, 14)
-    for i in range(14):
-        draw5PE.FixParameter(i, fit5.GetParameter(i))
+    draw5PE = TF1("BackGround_MIP", fit_func, 0.0, 1000.0, 14)
+    draw5PE.SetParameters(*fit5.GetParameters())
     draw5PE.SetLineWidth(2)
     draw5PE.SetLineColor(ROOT.kBlue)
     draw5PE.Draw("same")
@@ -172,13 +122,17 @@ def main():
     try:
         h = ROOT.TH1D("h", "h", 1000, 0, 2000)
         chan = 1
+        max_entries = 10
+        entry_count = 0
 
-        # Read data from TChain
         for entry in chBase:
-            # Assuming FERS_Board1_energyHG is a branch in the tree
             hg1 = getattr(chBase, "FERS_Board1_energyHG")
             if hg1[chan] < 1000:
                 h.Fill(hg1[chan])
+                
+            entry_count += 1
+            if entry_count >= max_entries:
+                break
 
         fitSPEMIP(h, 1)
     except Exception as e:
@@ -186,3 +140,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#end
