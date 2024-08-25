@@ -32,47 +32,23 @@ def book_hist(selected_channel, correlated_channel):
         print(f"Booked histogram: {s}")
     return s
 
-# Function to calculate correlation coefficients and save high correlations
-def calculate_correlations(tree, total_channels):
-    high_correlations = []
-    for selected_channel in range(total_channels):
-        for channel in range(selected_channel + 1, total_channels):  # Start from selected_channel + 1
-            hist2D = ROOT.TH2D(f"hist2D_{selected_channel}_{channel}",
-                               f"FERS Board 1 - Channel {selected_channel} vs Channel {channel};Ch{selected_channel};Ch{channel}",
-                               100, 300, 2000, 100, 300, 2000)
-            expression = f"FERS_Board1_energyHG[{selected_channel}]:FERS_Board1_energyHG[{channel}]>>{hist2D.GetName()}"
-            tree.Draw(expression, "", "goff", 22000)
-
-            # Calculate the correlation coefficient
-            correlation_coefficient = hist2D.GetCorrelationFactor()
-
-            if correlation_coefficient > 0.8:
-                high_correlations.append((selected_channel, channel, correlation_coefficient))
-
-            del hist2D
-
-    # Convert the list to a numpy array and save it
-    high_correlations_array = np.array(high_correlations, dtype=[('selected_channel', int), ('channel', int), ('correlation_coefficient', float)])
-    np.save("high_correlations.npy", high_correlations_array)
-    print(f"High correlation coefficients saved to 'high_correlations.npy'.")
-    print(f"Number of high correlations: {len(high_correlations_array)}")
-# Function to generate 2D histograms for high correlation pairs
+# Function to generate 2D histograms based on specified pairs
 def generate_2D_histograms(tree):
-    # Load the high correlation pairs
-    high_correlations_array = np.load("high_correlations.npy")
-    
+    # Define pairs to compare based on the 4x2 groups
+    pairs = []
+    for group_start in range(0, 64, 8):  # Start each group at multiples of 8 (0, 8, 16, ..., 56)
+        for i in range(4):  # Compare the first 4 channels in each group with the next 4 channels
+            pairs.append((group_start + i, group_start + i + 4))
+
     # Loop over the entries in the tree
     cnt = 0
     for entry in tree:
-        if cnt > 22000:  # Change value to loop over a certain amount of entries.
+        if cnt > 4500:  # Change value to loop over a certain amount of entries.
             break
         cnt += 1
         get_data(entry)
         
-        for correlation in high_correlations_array:
-            selected_channel = correlation['selected_channel']
-            correlated_channel = correlation['channel']
-            
+        for selected_channel, correlated_channel in pairs:
             # Book and get the histogram name
             s = book_hist(selected_channel, correlated_channel)
             
@@ -86,14 +62,13 @@ def generate_2D_histograms(tree):
 def main():
     file = ROOT.TFile(file_path, "READ")
     tree = file.Get("EventTree")
-    output_file = ROOT.TFile("FERS_Comparison_run3.root", "RECREATE")
+    output_file = ROOT.TFile("FERS_rod_comparison_run2.root", "RECREATE")
     c = ROOT.TCanvas("c", "Canvas", 1200, 900)
 
-    calculate_correlations(tree, 64)
     generate_2D_histograms(tree)
 
     # PDF output
-    output_pdf = "FERS_2D_output_histograms_run3.pdf"
+    output_pdf = "FERS_2D_output_rod_histograms_run2.pdf"
     c.Print(f"{output_pdf}[")  # Open the PDF
 
     for k in h2.keys():
@@ -110,7 +85,7 @@ def main():
     file.Close()
 
 # Global variables
-file_path = "/home/gvetters/CaloX_Work/data-files/run742_V22000.root"
+file_path = "/home/gvetters/CaloX_Work/data-files/run749_4500.root"
 df = {} 
 h2 = {}
 

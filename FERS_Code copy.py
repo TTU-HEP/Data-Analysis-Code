@@ -39,14 +39,46 @@ def get_data(entry):
     global df
     df["hg1"] = np.array(entry.FERS_Board1_energyHG)
     
+'''
+max_bin = []
+min_bin = []
+
+# Ask for minimum bin value and convert to integer safely
+while True:
+    min_cut = input("Please provide a minimum bin value you wish to integrate from: ")
+    try:
+        min_int = int(min_cut)
+        break
+    except ValueError:
+        print("Invalid input. Please enter a valid integer.")
+
+integral_bin = []
+ch_list = np.arange(64)
+#print(ch_list)
+'''
 
 def book_hist():
     global h1, df
     for k in df.keys():
         for ch in np.arange(64):
             s = k + "_" + str(ch)
-            h1[s] = ROOT.TH1D(s, "FERS Board "+s+";Energy(ADC);Count", 100, 0, 7999)
+            h1[s] = ROOT.TH1D(s, "FERS Board "+s+";Energy(ADC);Count", 100, 10, 8000)
 
+'''
+def analyze_hist(h):
+    global h1, max_bin, min_bin,integral_bin
+    for hist in h1.values():
+        max_bin.append(hist.GetMaximumBin())
+        min_bin.append(hist.FindBin(min_int))
+        hist.Scale(1.0/hist.Integral())
+        integral_bin.append(hist.Integral(hist.FindBin(min_int),hist.GetMaximumBin()))
+    
+    return average_integral
+
+    #print("maximum bin #:", max_bin, len(max_bin))
+    #print("minimum bin #:", min_bin, len(min_bin))
+    #print("integral bin #: ", integral_bin, len(integral_bin))
+'''
 
 for entry in tree:
     if cnt > 4500:  #change value to loop over a certain amount of entries.
@@ -69,6 +101,43 @@ for entry in tree:
             last_bin_content = h1[s].GetBinContent(last_bin)
             h1[s].SetBinContent(last_bin, last_bin_content + overflow_content)
             #h1[s].SetBinContent(overflow_bin, 0)  # Optionally clear the overflow bin
+
+'''
+# Analyze the histograms after filling them
+analyze_hist(h1)
+average_integral = np.mean(integral_bin)
+print("Average integral value:", average_integral)
+
+plt.plot(ch_list, integral_bin, linestyle='-', marker='o', color='blue')
+
+# Collect points with integral > 6000
+high_integrals = [(ch, integral) for ch, integral in zip(ch_list, integral_bin) if integral > average_integral]
+
+# Highlight points with integral > 6000 in red
+for ch, integral in high_integrals:
+    plt.plot(ch, integral, marker='o', color='red')
+
+# Display the high integrals in a box in the upper right corner
+
+if high_integrals:
+    header = "Interesting Channels"
+    info_text = header + "\n" + "\n".join([f"Channel {ch}: {integral}" for ch, integral in high_integrals])
+    plt.annotate(
+        info_text,
+        xy=(1, 1), xycoords='axes fraction',
+        fontsize=8, ha='right', va='top',
+        bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white")
+    )
+
+plt.title(f"Average Energy Deposited in each Channel within FERS Board 1; min cut= {min_int}")
+plt.xlabel("Channel #")
+plt.xticks(np.arange(0, 64, step=2))
+plt.rc('xtick', labelsize=20) 
+plt.rc('ytick', labelsize=20) 
+plt.ylabel("Integral of ADC Value")
+plt.show()
+#plt.savefig('Integral_plt.png')
+'''
 
 # Create a multi-page PDF
 output_pdf = "FERS_output_histograms4.pdf"
