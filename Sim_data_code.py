@@ -5,7 +5,7 @@ import numpy as np
 #file = ROOT.TFile("/home/gvetters/CaloX_Work/sim_data/GV_files/mc_xsim10Cu_run004_00_Test_10000evt_pi+_1.0_150.0.root", "READ")
 file = ROOT.TFile("/home/gvetters/CaloX_Work/sim_data/GV_files/mc_xsim54Cu_run005_00_Test_10000evt_pi+_1.0_150.0.root", "READ")
 #file = ROOT.TFile("/home/gvetters/CaloX_Work/sim_data/GV_files/mc_testjob_run001_003_Test_4500evt_mu+_5.0_150.0.root")
-output_file = ROOT.TFile("sim_data2_pi+.root", "RECREATE")
+output_file = ROOT.TFile("sim_data_uw_pi+.root", "RECREATE")
 
 # Get the tree from the file
 tree = file.Get("tree;4") #4 or 1
@@ -80,19 +80,22 @@ print("length of ph3dCC_array:", len(ph3dCC_array))
 def create_weighted_1d_histogram(name, title, x, weights, bins, x_min, x_max):
     # Create the histogram
     h = ROOT.TH1D(name, title, bins, x_min, x_max)
-    h.SetStats(False)
+    #h.SetStats(False)
     
     # Fill the histogram with weights
     for i in range(len(x)):
-        h.Fill(x[i], weights[i])
-    
+        #h.Fill(x[i], weights[i])
+        h.Fill(x[i])
+
+    #print("Number of entries in", name, ": ", h.GetEntries())
+    #print("Total integral of", name, ":", h.Integral())
 
     # Handle underflow and overflow
-    underflow = h.GetBinContent(0)
-    overflow = h.GetBinContent(h.GetNbinsX() + 1)
+    #underflow = h.GetBinContent(0)
+    #overflow = h.GetBinContent(h.GetNbinsX() + 1)
 
-    print("Underflow =", underflow)
-    print("Overflow =", overflow)
+    #print("Underflow =", underflow)
+    #print("Overflow =", overflow)
 
     # Customize histogram appearance
     h.SetLineWidth(2)
@@ -104,8 +107,10 @@ def create_weighted_1d_histogram(name, title, x, weights, bins, x_min, x_max):
 
     # Draw and save the histogram to a PDF file
     c = ROOT.TCanvas(name + "_canvas", "Canvas", 800, 600)
+    ROOT.gPad.SetLogz()
     h.Draw()
 
+    '''
     # Create a legend
     legend = ROOT.TLegend(0.7, 0.7, 0.9, 0.9)
     legend.AddEntry(h, f"{title}: {int(h.GetEntries())} entries", "l")
@@ -121,7 +126,7 @@ def create_weighted_1d_histogram(name, title, x, weights, bins, x_min, x_max):
 
     # Draw the TPaveText with underflow and overflow information
     pave_text.Draw()
-
+    '''
     #c.SaveAs(f"{name}.pdf")
 
 # Define function to create and save 2D histograms
