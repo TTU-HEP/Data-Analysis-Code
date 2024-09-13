@@ -13,7 +13,8 @@ hist_config = {
 }
 
 # Open your ROOT file
-file = ROOT.TFile("/home/gvetters/CaloX_Work/ROOT_code/GV_code/pi+_hists/sim_data2_pi+.root", "READ")
+#file = ROOT.TFile("/home/gvetters/CaloX_Work/ROOT_code/GV_code/pi+_hists/sim_data2_pi+.root", "READ")
+file = ROOT.TFile("/home/gvetters/CaloX_Work/ROOT_code/GV_code/pi+_hists/uw/sim_data_uw1_pi+.root", "READ")
 
 # Function to analyze and plot a specific histogram
 def analyze_histogram(hist_name):
@@ -33,6 +34,7 @@ def analyze_histogram(hist_name):
         for j in range(1, hist.GetNbinsY() + 1):
             y_values[j-1] = hist.GetYaxis().GetBinCenter(j)
             weights[j-1] = hist.GetBinContent(i, j)
+            print("weights = ", weights[j-1])
         
         # Calculate the weighted mean for this x-axis slice
         if np.sum(weights) != 0:
@@ -42,7 +44,13 @@ def analyze_histogram(hist_name):
         
         # Store the weighted average in the numpy array
         x_slices_weighted_avg[i-1] = weighted_avg_y
-    print("slices =", x_slices_weighted_avg)
+
+    if hist.GetNbinsX() > 100:
+        for i in np.arange(0, len(x_slices_weighted_avg), 10):
+            print("slices of z_bin data (in groups of 10) =", x_slices_weighted_avg[i], "located at bin #", i)
+    else:
+        for i in np.arange(0, len(x_slices_weighted_avg), 1):
+            print("slices =", x_slices_weighted_avg[i], "located at bin #", i)
 
     # Plotting
     z_bin = np.arange(1, hist.GetNbinsX() + 1)
@@ -50,17 +58,24 @@ def analyze_histogram(hist_name):
     plt.title(config["title"])
     plt.xlabel(config["xlabel"])
     plt.ylabel(config["ylabel"])
-    plt.xticks(np.arange(1, hist.GetNbinsX() + 1, step=1))
+    
+    if hist.GetNbinsX() > 100:
+        plt.xticks(np.arange(0, hist.GetNbinsX() + 1, step=10))
+    else:
+        plt.xticks(np.arange(0, hist.GetNbinsX() + 1, step=1))
+        
     plt.show()
 
 hist_names =  ["h5", "h6", "h9", "h10", "h11", "h12"] 
 for hist_name in hist_names:
     analyze_histogram(hist_name)
 
-x1 = np.array([11.0, 11.0, 14.0, 14.0, 11.0, 11.0])
-x2 = np.array([18.0, 18.0, 20.0, 20.0, 18.0, 18.0])
-y1 = np.array([17.53, 17.83, 8.23, 8.20, 7.20, 7.02])
-y2 = np.array([15.12, 15.10, 8.67, 8.58, 9.02, 9.02])
+
+#                h5     h6   *h9   *h10   h11    h12
+x1 = np.array([140.0, 140.0, 14.0, 14.0, 140.0, 140.0])
+x2 = np.array([220.0, 220.0, 20.0, 20.0, 220.0, 220.0])
+y1 = np.array([17.94, 17.39, 8.86, 8.82, 7.71, 7.73])
+y2 = np.array([15.44, 15.72, 9.21, 9.12, 9.54, 9.65])
 
 for num in x1, x2, y1, y2:
     slope=-(y2-y1)*16.0/((x2-x1)*125.0)
@@ -72,5 +87,12 @@ for name, angle in zip(hist_names, theta):
     print(f"Histogram: {name}, Theta: {angle:.2f} degrees")
 
 
-
-#slopes: [ 2.52331054  2.85783298 -0.53780059 -0.46446761 -1.90610004 -2.09445508]
+'''
+slope= [ 0.004       0.002672   -0.00746667 -0.0064     -0.002928   -0.003072  ]
+Histogram: h5, Theta: 0.23 degrees
+Histogram: h6, Theta: 0.15 degrees
+Histogram: h9, Theta: -0.43 degrees
+Histogram: h10, Theta: -0.37 degrees
+Histogram: h11, Theta: -0.17 degrees
+Histogram: h12, Theta: -0.18 degrees
+'''
